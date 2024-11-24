@@ -54,5 +54,23 @@ def register():
     finally:
         connection.close()
 
+# Login user
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email, password = data['email'], data['password']
+    
+    connection = connect_db()
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT id, password, role FROM users WHERE email=%s", (email,))
+            user = cursor.fetchone()
+            if user and check_password_hash(user[1], password):
+                token = create_access_token(identity={"id": user[0], "role": user[2]}, expires_delta=timedelta(days=1))
+                return jsonify({"status": "success", "token": token})
+            return jsonify({"status": "error", "message": "Invalid credentials"}), 401
+    finally:
+        connection.close()
+
 if __name__ == '__main__':
     app.run(debug=True)
