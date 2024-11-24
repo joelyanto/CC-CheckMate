@@ -72,5 +72,44 @@ def login():
     finally:
         connection.close()
 
+@app.route('/api/logout', methods=['POST'])
+@jwt_required()
+def logout():
+    # Mendapatkan JWT ID unik (JTI) dari token yang sedang digunakan
+    jti = get_jwt()["jti"]
+    
+    # Menyimpan JTI ke blacklist di database
+    connection = connect_db()
+    try:
+        with connection.cursor() as cursor:
+            # Menyimpan jti yang sudah dicabut di blacklist
+            cursor.execute("INSERT INTO token_blacklist (jti) VALUES (%s)", (jti,))
+        connection.commit()
+
+        return jsonify({"status": "success", "message": "Successfully logged out."}), 200
+    except Exception as e:
+        connection.rollback()
+        # Adding logging for the error
+        app.logger.error(f"Error during logout: {e}")
+        return jsonify({"status": "error", "message": "An error occurred during logout."}), 500
+    finally:
+        connection.close()
+
+@jwt.token_in_blocklist_loader
+def check_if_token_in_blocklist(jwt_header, jwt_payload):
+    jti = jwt_payload["jti"]
+    connection = connect_db()
+    try:
+        with connection.cursor() as cursor:
+            # Memeriksa apakah JTI ada di blocklist
+            cursor.execute("SELECT * FROM token_blacklist WHERE jti = %s", (jti,))
+            result = cursor.fetchone()
+            if result:
+                app.logger.info(f"Token with JTI {jti} is blacklisted.")
+                return True  # Token ditemukan di blocklist, maka token dianggap tidak valid
+            return False  # Token tidak ditemukan, berarti valid
+    finally:
+        connection.close()
+
 if __name__ == '__main__':
     app.run(debug=True)
