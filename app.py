@@ -165,5 +165,46 @@ def update_profile():
     finally:
         connection.close()
 
+# Get profile
+@app.route('/api/get_profile', methods=['GET'])
+@jwt_required()
+def get_profile():
+    # Ambil data pengguna yang login dari token JWT
+    user = get_jwt_identity()
+    user_id = user['id']
+    role = user['role']
+
+    # Koneksi ke database
+    connection = connect_db()
+    try:
+        with connection.cursor(pymysql.cursors.DictCursor) as cursor:
+            # Ambil data umum dari tabel `users`
+            cursor.execute("SELECT id, name, email, role FROM users WHERE id=%s", (user_id,))
+            user_data = cursor.fetchone()
+            
+            if not user_data:
+                return jsonify({"status": "error", "message": "User not found"}), 404
+            
+            # Ambil data spesifik berdasarkan role
+            if role == 'siswa':
+                cursor.execute("SELECT class, grade FROM siswa WHERE user_id=%s", (user_id,))
+                specific_data = cursor.fetchone()
+            elif role == 'guru':
+                cursor.execute("SELECT subject, qualification FROM guru WHERE user_id=%s", (user_id,))
+                specific_data = cursor.fetchone()
+            elif role == 'orang_tua':
+                cursor.execute("SELECT phone_number, address, student_id FROM orang_tua WHERE user_id=%s", (user_id,))
+                specific_data = cursor.fetchone()
+            else:
+                return jsonify({"status": "error", "message": "Invalid role"}), 400
+
+            # Gabungkan data umum dan spesifik
+            profile_data = {**user_data, **(specific_data or {})}
+            return jsonify({"status": "success", "data": profile_data}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        connection.close()
+
 if __name__ == '__main__':
     app.run(debug=True)
