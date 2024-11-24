@@ -206,5 +206,114 @@ def get_profile():
     finally:
         connection.close()
 
+@app.route('/api/predict', methods=['POST'])
+@jwt_required()
+def predict():
+    user = get_jwt_identity()
+    if user['role'] != 'guru':
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({"error": "Invalid request"}), 400
+    
+    file = request.files['file']
+    temp_path = os.path.join("temp", file.filename)
+    file.save(temp_path)
+    
+    # Predict with model
+    img = image.load_img(temp_path, target_size=(128, 128))
+    img_array = image.img_to_array(img)
+    img_array = np.expand_dims(img_array, axis=0) / 255.0
+    prediction = model.predict(img_array)
+    os.remove(temp_path)
+    
+    predicted_name = "nagita" if prediction[0] > 0.5 else "raffi"
+    
+    connection = connect_db()
+    try:
+        with connection.cursor() as cursor:
+            send_message = []
+            attendance_count = 0
+            
+            # Hanya ambil siswa yang namanya sesuai dengan prediksi
+            cursor.execute("""
+                SELECT s.id, u.name 
+                FROM siswa s
+                JOIN users u ON s.user_id = u.id
+                WHERE LOWER(u.name) LIKE %s
+            """, (f"%{predicted_name.lower()}%",))
+            
+            matching_student = cursor.fetchone()
+            
+            if matching_student:
+                student_id, student_name = matching_student[0], matching_student[1]
+                
+                # Periksa waktu saat ini
+                current_time = datetime.now().time()
+                current_date = datetime.now().date()
+                cutoff_time = time(21, 0)  # Jam 18:00
+                status = 'Hadir' if current_time <= cutoff_time else 'Terlambat'
+                
+                # Periksa kehadiran terakhir siswa
+                cursor.execute("""
+                    SELECT id, DATE(date) as attendance_date
+                    FROM attendance
+                    WHERE student_id = %s
+                    ORDER BY date DESC
+                    LIMIT 1
+                """, (student_id,))
+                
+                last_attendance = cursor.fetchone()
+                
+                if last_attendance:
+                    last_attendance_date = last_attendance[1]
+                    
+                    if last_attendance_date == current_date:
+                        # Update jika di hari yang sama
+                        cursor.execute("""
+                            UPDATE attendance
+                            SET status = %s, date = NOW()
+                            WHERE id = %s
+                        """, (status, last_attendance[0]))
+                    else:
+                        # Insert baru jika hari berbeda
+                        cursor.execute("""
+                            INSERT INTO attendance (student_id, status, date) 
+                            VALUES (%s, %s, NOW())
+                        """, (student_id, status))
+                        attendance_count += 1
+                else:
+                    # Insert baru jika belum ada record
+                    cursor.execute("""
+                        INSERT INTO attendance (student_id, status, date) 
+                        VALUES (%s, %s, NOW())
+                    """, (student_id, status))
+                    attendance_count += 1
+                
+                # Update pesan terakhir orang tua
+                message = f"Siswa {student_name.title()} {status} pada {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                cursor.execute("""
+                    UPDATE orang_tua 
+                    SET last_message = %s 
+                    WHERE student_id = %s
+                """, (message, student_id))
+                send_message.append(message)
+                
+        connection.commit()
+        return jsonify({
+            "status": "success",
+            "predicted_name": predicted_name,
+            "send_message": send_message,
+            "attendance_count": attendance_count
+        })
+    except Exception as e:
+        connection.rollback()
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+    finally:
+        connection.close()
+
 if __name__ == '__main__':
     app.run(debug=True)
