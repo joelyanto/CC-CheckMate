@@ -8,23 +8,27 @@ import os
 from werkzeug.security import generate_password_hash, check_password_hash
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
+from dotenv import load_dotenv
 import numpy as np
+
+load_dotenv()
 
 # Flask setup
 app = Flask(__name__)
-app.config['JWT_SECRET_KEY'] = 'your_secret_key'
+app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')  # Load secret key from .env
 jwt = JWTManager(app)
 
 # Load face classification model
-model = load_model('face_classifier.h5')
+model_path = os.getenv('MODEL_PATH')  # Load model path from .env
+model = load_model(model_path)
 
 # Database connection
 def connect_db():
     return pymysql.connect(
-        host='localhost',
-        user='root',
-        password='',
-        database='schools'
+        host=os.getenv('DB_HOST'),        # Load DB host from .env
+        user=os.getenv('DB_USER'),        # Load DB user from .env
+        password=os.getenv('DB_PASSWORD'), # Load DB password from .env
+        database=os.getenv('DB_NAME')     # Load DB name from .env
     )
 
 # Register user

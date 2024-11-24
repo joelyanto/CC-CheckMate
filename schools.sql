@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Waktu pembuatan: 24 Nov 2024 pada 15.39
+-- Waktu pembuatan: 24 Nov 2024 pada 15.53
 -- Versi server: 10.1.32-MariaDB
 -- Versi PHP: 5.6.36
 
@@ -31,7 +31,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `attendance` (
   `id` int(11) NOT NULL,
   `student_id` int(11) NOT NULL,
-  `status` enum('Hadir','Tidak Hadir') NOT NULL,
+  `status` enum('Hadir','Tidak Hadir','Terlambat') NOT NULL,
   `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
@@ -40,8 +40,8 @@ CREATE TABLE `attendance` (
 --
 
 INSERT INTO `attendance` (`id`, `student_id`, `status`, `date`) VALUES
-(1, 2, 'Tidak Hadir', '2024-11-24 15:10:04'),
-(2, 1, '', '2024-11-24 21:37:11');
+(1, 2, 'Terlambat', '2024-11-24 21:53:15'),
+(2, 1, 'Terlambat', '2024-11-24 21:51:12');
 
 -- --------------------------------------------------------
 
@@ -83,8 +83,8 @@ CREATE TABLE `orang_tua` (
 --
 
 INSERT INTO `orang_tua` (`id`, `user_id`, `student_id`, `phone_number`, `address`, `last_message`) VALUES
-(1, 7, 1, '081234567890', 'JL. Mawar', 'Siswa Raffi Terlambat pada 2024-11-24 21:37:11'),
-(2, 8, 2, '081234567891', 'JL. Melati', 'Siswa Nagita Tidak Hadir pada 2024-11-24 15:10:04');
+(1, 7, 1, '081234567890', 'JL. Mawar', 'Siswa Raffi Terlambat pada 2024-11-24 21:51:12'),
+(2, 8, 2, '081234567891', 'JL. Melati', 'Siswa Nagita Terlambat pada 2024-11-24 21:53:15');
 
 -- --------------------------------------------------------
 
@@ -130,7 +130,8 @@ INSERT INTO `token_blacklist` (`id`, `jti`, `created_at`) VALUES
 (4, 'da4e3a9b-0d67-4766-b223-d93595ec12f8', '2024-11-24 06:53:27'),
 (5, '5cd65a1f-6434-4ed0-9612-026c6b8a9e4c', '2024-11-24 08:05:33'),
 (6, '231a9d2d-4a82-43d9-8ff0-6f277fbd9cf0', '2024-11-24 08:13:19'),
-(7, '77a9b6c4-b7de-4412-aacd-ac8977f26898', '2024-11-24 13:52:41');
+(7, '77a9b6c4-b7de-4412-aacd-ac8977f26898', '2024-11-24 13:52:41'),
+(8, '899177f7-d682-47e4-9c85-c708839889a9', '2024-11-24 14:49:32');
 
 -- --------------------------------------------------------
 
@@ -235,7 +236,7 @@ ALTER TABLE `siswa`
 -- AUTO_INCREMENT untuk tabel `token_blacklist`
 --
 ALTER TABLE `token_blacklist`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT untuk tabel `users`
