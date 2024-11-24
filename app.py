@@ -315,5 +315,89 @@ def predict():
     finally:
         connection.close()
 
+@app.route('/api/attendance/today', methods=['GET'])
+@jwt_required()
+def get_today_attendance():
+    user = get_jwt_identity()
+
+    # Pastikan hanya guru yang bisa mengakses endpoint ini
+    if user['role'] != 'guru':
+        return jsonify({"status": "error", "message": "Unauthorized"}), 403
+
+    # Untuk debugging, bisa menggunakan parameter date dari query string
+    target_date = request.args.get('date')
+    
+    if target_date:
+        try:
+            # Validasi format tanggal
+            datetime.strptime(target_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({
+                "status": "error",
+                "message": "Invalid date format. Use YYYY-MM-DD"
+            }), 400
+    else:
+        # Jika tidak ada parameter date, gunakan hari ini
+        target_date = datetime.today().strftime('%Y-%m-%d')
+
+    # Koneksi ke database
+    connection = connect_db()
+    try:
+        with connection.cursor() as cursor:
+            # Query untuk mendapatkan semua data kehadiran
+            cursor.execute("""
+                SELECT a.student_id, u.name, a.status, a.date
+                FROM attendance a
+                JOIN siswa s ON a.student_id = s.id
+                JOIN users u ON s.user_id = u.id
+                WHERE DATE(a.date) = %s
+                ORDER BY a.date DESC
+            """, (target_date,))
+
+            # Ambil hasil query
+            attendance_data = cursor.fetchall()
+
+            # Debug info
+            debug_info = {
+                "queried_date": target_date,
+                "is_future_date": target_date > datetime.today().strftime('%Y-%m-%d'),
+                "total_records": len(attendance_data)
+            }
+
+            # Jika tidak ada data
+            if not attendance_data:
+                return jsonify({
+                    "status": "success",
+                    "message": "No attendance records found",
+                    "date": target_date,
+                    "debug_info": debug_info
+                }), 200
+
+            # Struktur data untuk response
+            attendance_list = []
+            for row in attendance_data:
+                student_id = row[0]
+                student_name = row[1]
+                status = row[2]
+                attendance_time = row[3].strftime('%Y-%m-%d %H:%M:%S')
+
+                attendance_list.append({
+                    "student_id": student_id,
+                    "student_name": student_name,
+                    "attendance_status": status,
+                    "attendance_time": attendance_time
+                })
+
+        # Mengembalikan data kehadiran
+        return jsonify({
+            "status": "success",
+            "date": target_date,
+            "attendance": attendance_list,
+            "debug_info": debug_info
+        })
+
+    finally:
+        connection.close()
+
 if __name__ == '__main__':
     app.run(debug=True)
