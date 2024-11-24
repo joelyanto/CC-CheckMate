@@ -251,7 +251,7 @@ def predict():
                 # Periksa waktu saat ini
                 current_time = datetime.now().time()
                 current_date = datetime.now().date()
-                cutoff_time = time(21, 0)  # Jam 18:00
+                cutoff_time = time(7, 0)  # Jam 7:00
                 status = 'Hadir' if current_time <= cutoff_time else 'Terlambat'
                 
                 # Periksa kehadiran terakhir siswa
